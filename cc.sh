@@ -1107,6 +1107,7 @@ while true; do
             exit 0
             ;;
         q) ;;  # q 直接回到主菜单
+        "") ;;  # 空输入直接回到主菜单，不提示
         *)
             echo -e "${gl_huang}无效选择，请重新输入${gl_bai}"
             sleep 1
