@@ -262,7 +262,7 @@ do_open_port() {
     echo "当前已开放的端口："
     echo ""
     if command -v firewall-cmd >/dev/null 2>&1; then
-        local ports=$(firewall-cmd --list-ports 2>/dev/null)
+        local ports=$(run_cmd firewall-cmd --list-ports 2>/dev/null)
         if [ -z "$ports" ]; then
             echo "  暂无"
         else
@@ -271,11 +271,11 @@ do_open_port() {
             done
         fi
     elif command -v ufw >/dev/null 2>&1; then
-        ufw status numbered 2>/dev/null | grep -E "\[[0-9]+\]" | while read line; do
+        run_cmd ufw status numbered 2>/dev/null | grep -E "\[[0-9]+\]" | while read line; do
             echo "  $line"
         done
     elif command -v iptables >/dev/null 2>&1; then
-        iptables -L INPUT -n 2>/dev/null | grep ACCEPT | grep dpt | awk '{for(i=1;i<=NF;i++) if($i ~ /dpt:/) print "  "$i}' | sed 's/dpt:/端口 /' | sort -u | head -20
+        run_cmd iptables -L INPUT -n 2>/dev/null | grep ACCEPT | grep dpt | awk '{for(i=1;i<=NF;i++) if($i ~ /dpt:/) print "  "$i}' | sed 's/dpt:/端口 /' | sort -u | head -20
     else
         echo "  暂无可识别的防火墙工具"
     fi
@@ -303,20 +303,20 @@ do_open_port() {
         fi
 
         if command -v firewall-cmd >/dev/null 2>&1; then
-            firewall-cmd --permanent --add-port=$port/tcp >/dev/null 2>&1
-            firewall-cmd --permanent --add-port=$port/udp >/dev/null 2>&1
-            firewall-cmd --reload >/dev/null 2>&1
+            run_cmd firewall-cmd --permanent --add-port=$port/tcp >/dev/null 2>&1
+            run_cmd firewall-cmd --permanent --add-port=$port/udp >/dev/null 2>&1
+            run_cmd firewall-cmd --reload >/dev/null 2>&1
             echo -e "${gl_lv}端口 $port 已开放（firewalld）${gl_bai}"
         elif command -v ufw >/dev/null 2>&1; then
-            ufw allow $port/tcp >/dev/null 2>&1
+            run_cmd ufw allow $port/tcp >/dev/null 2>&1
             echo -e "${gl_lv}端口 $port 已开放（ufw）${gl_bai}"
         elif command -v iptables >/dev/null 2>&1; then
-            iptables -I INPUT -p tcp --dport $port -j ACCEPT 2>/dev/null
-            iptables -I INPUT -p udp --dport $port -j ACCEPT 2>/dev/null
+            run_cmd iptables -I INPUT -p tcp --dport $port -j ACCEPT 2>/dev/null
+            run_cmd iptables -I INPUT -p udp --dport $port -j ACCEPT 2>/dev/null
             echo -e "${gl_lv}端口 $port 已开放（iptables）${gl_bai}"
         else
             echo -e "${gl_hong}未检测到防火墙工具，尝试 iptables${gl_bai}"
-            iptables -I INPUT -p tcp --dport $port -j ACCEPT 2>/dev/null || \
+            run_cmd iptables -I INPUT -p tcp --dport $port -j ACCEPT 2>/dev/null || \
                 echo -e "${gl_hong}开放失败，请手动操作${gl_bai}"
         fi
     done
