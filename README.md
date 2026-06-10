@@ -2,6 +2,14 @@
 
 一个面向 Linux VPS 的交互式系统管理脚本，提供常用运维操作的一键式菜单界面，无需记忆复杂命令。
 
+## 一键运行
+
+```bash
+bash <(curl -sL https://raw.githubusercontent.com/lqz8802/VPS-Maintenance-Script/main/cc.sh)
+```
+
+非 root 用户运行时，脚本会自动请求密码并切换到 root 用户执行，无需手动加 sudo。
+
 ## 功能一览
 
 | 序号 | 功能 | 说明 |
@@ -20,36 +28,13 @@
 - Arch Linux（Pacman）
 - Alpine（APK）
 
-## 快速使用
-
-```bash
-# 下载并运行（需要 root 权限）
-curl -O https://raw.githubusercontent.com/lqz8802/VPS-/main/cc.sh
-chmod +x cc.sh
-sudo ./cc.sh
-```
-
-或直接克隆仓库：
-
-```bash
-git clone https://github.com/lqz8802/VPS-.git
-cd VPS-
-sudo ./cc.sh
-```
-
 ## 安全特性
 
-- 🔒 必须以 root 运行，否则自动退出
+- 🔒 自动检测权限，非 root 用户自动提权
 - 🚫 关闭端口时禁止关闭 SSH 22 端口，防止断连
 - 🚫 禁止删除 root 用户
 - ✅ 所有危险操作（删除用户、修改密码）均有二次确认
 - ↩️ 任何输入步骤输入 `q` 可随时返回上级菜单
-
-## 交互设计
-
-- 彩色终端输出，操作状态一目了然
-- 多级菜单结构，端口管理和账户管理各有子菜单
-- 输入 `q` 可在任何步骤返回上级，避免误操作
 
 ## 许可证
 
