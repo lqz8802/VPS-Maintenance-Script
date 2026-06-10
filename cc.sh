@@ -333,7 +333,7 @@ do_close_port() {
     echo "当前已开放的端口："
     echo ""
     if command -v firewall-cmd >/dev/null 2>&1; then
-        local ports=$(firewall-cmd --list-ports 2>/dev/null)
+        local ports=$(run_cmd firewall-cmd --list-ports 2>/dev/null)
         if [ -z "$ports" ]; then
             echo "  暂无"
         else
@@ -342,11 +342,11 @@ do_close_port() {
             done
         fi
     elif command -v ufw >/dev/null 2>&1; then
-        ufw status numbered 2>/dev/null | grep -E "\[[0-9]+\]" | while read line; do
+        run_cmd ufw status numbered 2>/dev/null | grep -E "\[[0-9]+\]" | while read line; do
             echo "  $line"
         done
     elif command -v iptables >/dev/null 2>&1; then
-        iptables -L INPUT -n 2>/dev/null | grep ACCEPT | grep dpt | awk '{for(i=1;i<=NF;i++) if($i ~ /dpt:/) print "  "$i}' | sed 's/dpt:/端口 /' | sort -u | head -20
+        run_cmd iptables -L INPUT -n 2>/dev/null | grep ACCEPT | grep dpt | awk '{for(i=1;i<=NF;i++) if($i ~ /dpt:/) print "  "$i}' | sed 's/dpt:/端口 /' | sort -u | head -20
     else
         echo "  暂无可识别的防火墙工具"
     fi
@@ -379,16 +379,16 @@ do_close_port() {
         fi
 
         if command -v firewall-cmd >/dev/null 2>&1; then
-            firewall-cmd --permanent --remove-port=$port/tcp >/dev/null 2>&1
-            firewall-cmd --permanent --remove-port=$port/udp >/dev/null 2>&1
-            firewall-cmd --reload >/dev/null 2>&1
+            run_cmd firewall-cmd --permanent --remove-port=$port/tcp >/dev/null 2>&1
+            run_cmd firewall-cmd --permanent --remove-port=$port/udp >/dev/null 2>&1
+            run_cmd firewall-cmd --reload >/dev/null 2>&1
             echo -e "${gl_hong}端口 $port 已关闭（firewalld）${gl_bai}"
         elif command -v ufw >/dev/null 2>&1; then
-            ufw delete allow $port/tcp >/dev/null 2>&1
+            run_cmd ufw delete allow $port/tcp >/dev/null 2>&1
             echo -e "${gl_hong}端口 $port 已关闭（ufw）${gl_bai}"
         elif command -v iptables >/dev/null 2>&1; then
-            iptables -D INPUT -p tcp --dport $port -j ACCEPT 2>/dev/null
-            iptables -D INPUT -p udp --dport $port -j ACCEPT 2>/dev/null
+            run_cmd iptables -D INPUT -p tcp --dport $port -j ACCEPT 2>/dev/null
+            run_cmd iptables -D INPUT -p udp --dport $port -j ACCEPT 2>/dev/null
             echo -e "${gl_hong}端口 $port 已关闭（iptables）${gl_bai}"
         else
             echo -e "${gl_hong}未检测到防火墙工具${gl_bai}"
@@ -497,7 +497,7 @@ do_change_username() {
     fi
     
     # 修改用户名
-    usermod -l "$new_username" "$old_username" 2>/dev/null && \
+    run_cmd usermod -l "$new_username" "$old_username" 2>/dev/null && \
         echo -e "${gl_lv}用户名已从 $old_username 修改为 $new_username${gl_bai}" || \
         echo -e "${gl_hong}修改失败，请手动执行: usermod -l $new_username $old_username${gl_bai}"
     
@@ -573,9 +573,9 @@ do_change_password() {
     fi
 
     # 修改密码
-    echo "$new_pass" | passwd --stdin "$username" 2>/dev/null && \
+    echo "$new_pass" | run_cmd passwd --stdin "$username" 2>/dev/null && \
         echo -e "${gl_lv}用户 $username 的密码已成功修改${gl_bai}" || \
-        echo "$username:$new_pass" | chpasswd 2>/dev/null && \
+        echo "$username:$new_pass" | run_cmd chpasswd 2>/dev/null && \
         echo -e "${gl_lv}用户 $username 的密码已成功修改${gl_bai}" || \
         echo -e "${gl_hong}密码修改失败，请手动执行: passwd $username${gl_bai}"
 
@@ -675,9 +675,9 @@ do_add_user() {
     
     # 创建用户
     if command -v useradd &>/dev/null; then
-        useradd -m -s /bin/bash "$new_user" 2>/dev/null
+        run_cmd useradd -m -s /bin/bash "$new_user" 2>/dev/null
     elif command -v adduser &>/dev/null; then
-        adduser --disabled-password --gecos "" "$new_user" 2>/dev/null
+        run_cmd adduser --disabled-password --gecos "" "$new_user" 2>/dev/null
     else
         echo -e "${gl_hong}未找到可用的用户创建命令${gl_bai}"
         back_menu
@@ -686,8 +686,8 @@ do_add_user() {
     
     # 设置密码
     if id "$new_user" &>/dev/null; then
-        echo "$new_pass" | passwd --stdin "$new_user" 2>/dev/null || \
-            echo "$new_user:$new_pass" | chpasswd 2>/dev/null
+        echo "$new_pass" | run_cmd passwd --stdin "$new_user" 2>/dev/null || \
+            echo "$new_user:$new_pass" | run_cmd chpasswd 2>/dev/null
         echo -e "${gl_lv}用户 $new_user 已创建并设置密码${gl_bai}"
     else
         echo -e "${gl_hong}用户创建失败${gl_bai}"
@@ -741,7 +741,7 @@ do_del_user() {
         back_menu
         return $?
     elif [ $ret -eq 0 ]; then
-        userdel -r "$del_user" 2>/dev/null && \
+        run_cmd userdel -r "$del_user" 2>/dev/null && \
             echo -e "${gl_lv}用户 $del_user 已删除${gl_bai}" || \
             echo -e "${gl_hong}删除失败，请手动执行: userdel -r $del_user${gl_bai}"
     else
@@ -794,9 +794,9 @@ do_root_account() {
                 back_menu
                 return
             fi
-            echo "$new_pass" | passwd --stdin root 2>/dev/null && \
+            echo "$new_pass" | run_cmd passwd --stdin root 2>/dev/null && \
                 echo -e "${gl_lv}Root 密码已成功修改${gl_bai}" || \
-                echo "root:$new_pass" | chpasswd 2>/dev/null && \
+                echo "root:$new_pass" | run_cmd chpasswd 2>/dev/null && \
                 echo -e "${gl_lv}Root 密码已成功修改${gl_bai}" || \
                 echo -e "${gl_hong}密码修改失败，请手动执行: passwd root${gl_bai}"
         else
@@ -814,9 +814,9 @@ do_root_account() {
         elif [ $ret -eq 0 ]; then
             # 根据系统选择创建方式
             if command -v useradd &>/dev/null; then
-                useradd -m -s /bin/bash root 2>/dev/null
+                run_cmd useradd -m -s /bin/bash root 2>/dev/null
             elif command -v adduser &>/dev/null; then
-                adduser --disabled-password --gecos "" root 2>/dev/null
+                run_cmd adduser --disabled-password --gecos "" root 2>/dev/null
             else
                 echo -e "${gl_hong}未找到可用的用户创建命令${gl_bai}"
                 back_menu
@@ -846,9 +846,9 @@ do_root_account() {
                     if [ "$new_pass" != "$confirm_pass" ]; then
                         echo -e "${gl_hong}两次输入的密码不一致${gl_bai}"
                     else
-                        echo "$new_pass" | passwd --stdin root 2>/dev/null && \
+                        echo "$new_pass" | run_cmd passwd --stdin root 2>/dev/null && \
                             echo -e "${gl_lv}Root 密码设置成功${gl_bai}" || \
-                            echo "root:$new_pass" | chpasswd 2>/dev/null && \
+                            echo "root:$new_pass" | run_cmd chpasswd 2>/dev/null && \
                             echo -e "${gl_lv}Root 密码设置成功${gl_bai}" || \
                             echo -e "${gl_hong}密码设置失败，请手动执行: passwd root${gl_bai}"
                     fi
@@ -917,17 +917,17 @@ do_change_hostname() {
     elif [ $ret -eq 0 ]; then
         # 使用 hostnamectl 修改（推荐）
         if command -v hostnamectl &>/dev/null; then
-            hostnamectl set-hostname "$new_hostname" 2>/dev/null && \
+            run_cmd hostnamectl set-hostname "$new_hostname" 2>/dev/null && \
                 echo -e "${gl_lv}主机名已成功修改为: $new_hostname${gl_bai}" || \
                 echo -e "${gl_hong}修改失败，请手动执行: hostnamectl set-hostname $new_hostname${gl_bai}"
         # 兼容没有 systemd 的系统
         elif [ -f /etc/hostname ]; then
-            echo "$new_hostname" > /etc/hostname && \
-                hostname "$new_hostname" 2>/dev/null && \
+            echo "$new_hostname" | run_cmd tee /etc/hostname >/dev/null && \
+                run_cmd hostname "$new_hostname" 2>/dev/null && \
                 echo -e "${gl_lv}主机名已成功修改为: $new_hostname${gl_bai}" || \
                 echo -e "${gl_hong}修改失败，请手动编辑 /etc/hostname${gl_bai}"
         else
-            hostname "$new_hostname" 2>/dev/null && \
+            run_cmd hostname "$new_hostname" 2>/dev/null && \
                 echo -e "${gl_lv}主机名已成功修改为: $new_hostname（重启后失效）${gl_bai}" || \
                 echo -e "${gl_hong}修改失败${gl_bai}"
         fi
