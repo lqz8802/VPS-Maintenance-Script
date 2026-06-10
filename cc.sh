@@ -21,7 +21,8 @@ if [ "$EUID" -ne 0 ]; then
     exec sudo -- bash -i "$TMPFILE"
 fi
 
-# 返回菜单提示
+# 清屏（确保提权后的欢迎信息被清除）
+clear
 back_menu() {
     echo ""
     echo -e "${gl_huang}输入 q 返回上级，回车继续...${gl_bai}"
