@@ -16,12 +16,21 @@ chmod +x "$SCRIPT_PATH" 2>/dev/null
 # 检查 root 权限（非 root 时自动下载并用 sudo 执行）
 check_root() {
     if [ "$EUID" -ne 0 ]; then
-        echo -e "${gl_huang}检测到非 root 用户，正在获取 root 权限...${gl_bai}"
-        if [ -f "$0" ]; then
-            exec sudo bash "$0" "$@"
+        echo -e "${gl_huang}该功能需要 root 权限，正在自动提权...${gl_bai}"
+        if sudo -n true 2>/dev/null; then
+            export USE_SUDO=1
         else
-            exec sudo bash /dev/stdin "$@"
+            sudo true && export USE_SUDO=1 || { echo -e "${gl_hong}权限获取失败，请手动使用 sudo 运行脚本${gl_bai}"; return 1; }
         fi
+    fi
+}
+
+# 通用执行（自动加 sudo）
+run() {
+    if [ "${USE_SUDO:-0}" = "1" ]; then
+        sudo "$@"
+    else
+        "$@"
     fi
 }
 
@@ -959,21 +968,21 @@ do_list_software() {
         echo -e "${gl_lan}包管理器:${gl_bai} dpkg (Debian/Ubuntu)"
     elif command -v dnf &>/dev/null; then
         pkg_manager="dnf"
-        pkg_count=$(dnf list installed --quiet 2>/dev/null | wc -l)
+        pkg_count=$(run_cmd dnf list installed --quiet 2>/dev/null | wc -l)
         pkg_count=$((pkg_count - 1))
         echo -e "${gl_lan}包管理器:${gl_bai} dnf (Fedora/RHEL)"
     elif command -v yum &>/dev/null; then
         pkg_manager="yum"
-        pkg_count=$(yum list installed --quiet 2>/dev/null | wc -l)
+        pkg_count=$(run_cmd yum list installed --quiet 2>/dev/null | wc -l)
         pkg_count=$((pkg_count - 1))
         echo -e "${gl_lan}包管理器:${gl_bai} yum (CentOS/RHEL)"
     elif command -v pacman &>/dev/null; then
         pkg_manager="pacman"
-        pkg_count=$(pacman -Q 2>/dev/null | wc -l)
+        pkg_count=$(run_cmd pacman -Q 2>/dev/null | wc -l)
         echo -e "${gl_lan}包管理器:${gl_bai} pacman (Arch)"
     elif command -v apk &>/dev/null; then
         pkg_manager="apk"
-        pkg_count=$(apk info 2>/dev/null | wc -l)
+        pkg_count=$(run_cmd apk info 2>/dev/null | wc -l)
         echo -e "${gl_lan}包管理器:${gl_bai} apk (Alpine)"
     else
         echo -e "${gl_hong}未检测到支持的包管理器${gl_bai}"
@@ -992,16 +1001,16 @@ do_list_software() {
             dpkg -l 2>/dev/null | grep '^ii' | awk '{printf "  %-42s %s\n", $2, $3}' | head -50
             ;;
         dnf)
-            dnf list installed --quiet 2>/dev/null | awk 'NR>0{printf "  %-42s %s\n", $1, $2}' | head -50
+            run_cmd dnf list installed --quiet 2>/dev/null | awk 'NR>0{printf "  %-42s %s\n", $1, $2}' | head -50
             ;;
         yum)
-            yum list installed --quiet 2>/dev/null | awk 'NR>0{printf "  %-42s %s\n", $1, $2}' | head -50
+            run_cmd yum list installed --quiet 2>/dev/null | awk 'NR>0{printf "  %-42s %s\n", $1, $2}' | head -50
             ;;
         pacman)
-            pacman -Q 2>/dev/null | awk '{printf "  %-42s %s\n", $1, $2}' | head -50
+            run_cmd pacman -Q 2>/dev/null | awk '{printf "  %-42s %s\n", $1, $2}' | head -50
             ;;
         apk)
-            apk info -v 2>/dev/null | awk '{printf "  %s\n", $0}' | head -50
+            run_cmd apk info -v 2>/dev/null | awk '{printf "  %s\n", $0}' | head -50
             ;;
     esac
     
