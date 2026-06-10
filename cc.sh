@@ -13,11 +13,15 @@ gl_kjlan='\033[96m'
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 chmod +x "$SCRIPT_PATH" 2>/dev/null
 
-# 检查 root 权限（非 root 时自动尝试 sudo 提权）
+# 检查 root 权限（非 root 时自动下载并用 sudo 执行）
 check_root() {
     if [ "$EUID" -ne 0 ]; then
-        echo -e "${gl_huang}检测到非 root 用户，正在尝试获取权限...${gl_bai}"
-        exec sudo bash "$0" "$@"
+        echo -e "${gl_huang}检测到非 root 用户，正在获取 root 权限...${gl_bai}"
+        if [ -f "$0" ]; then
+            exec sudo bash "$0" "$@"
+        else
+            exec sudo bash /dev/stdin "$@"
+        fi
     fi
 }
 
@@ -68,30 +72,30 @@ do_update() {
     if command -v apt-get >/dev/null 2>&1; then
         echo "检测到 APT 系统（Debian/Ubuntu）"
         echo "更新软件包列表..."
-        apt-get update -qq
+        run_cmd apt-get update -qq
         echo "升级所有可更新软件包..."
-        apt-get upgrade -y -qq 2>&1 | tail -5
+        run_cmd apt-get upgrade -y -qq 2>&1 | tail -5
         echo -e "${gl_lv}系统更新完成${gl_bai}"
 
     elif command -v dnf >/dev/null 2>&1; then
         echo "检测到 DNF 系统（CentOS/RHEL/Fedora）"
-        dnf check-update -q
-        dnf upgrade -y -q
+        run_cmd dnf check-update -q
+        run_cmd dnf upgrade -y -q
         echo -e "${gl_lv}系统更新完成${gl_bai}"
 
     elif command -v yum >/dev/null 2>&1; then
         echo "检测到 YUM 系统（CentOS/RHEL）"
-        yum update -y -q
+        run_cmd yum update -y -q
         echo -e "${gl_lv}系统更新完成${gl_bai}"
 
     elif command -v pacman >/dev/null 2>&1; then
         echo "检测到 Pacman 系统（Arch Linux）"
-        pacman -Syu --noconfirm
+        run_cmd pacman -Syu --noconfirm
         echo -e "${gl_lv}系统更新完成${gl_bai}"
 
     elif command -v apk >/dev/null 2>&1; then
         echo "检测到 APK 系统（Alpine）"
-        apk update && apk upgrade -U -a
+        run_cmd apk update && run_cmd apk upgrade -U -a
         echo -e "${gl_lv}系统更新完成${gl_bai}"
 
     else
@@ -110,36 +114,36 @@ do_cleanup() {
 
     if command -v apt-get >/dev/null 2>&1; then
         echo "清理 apt 缓存..."
-        apt-get clean -qq
-        apt-get autoclean -qq
+        run_cmd apt-get clean -qq
+        run_cmd apt-get autoclean -qq
         echo "删除不再需要的依赖..."
-        apt-get autoremove -y -qq
+        run_cmd apt-get autoremove -y -qq
         echo -e "${gl_lv}APT 缓存清理完成${gl_bai}"
 
     elif command -v dnf >/dev/null 2>&1; then
-        dnf clean all -q
-        dnf autoremove -y -q
+        run_cmd dnf clean all -q
+        run_cmd dnf autoremove -y -q
         echo -e "${gl_lv}DNF 缓存清理完成${gl_bai}"
 
     elif command -v yum >/dev/null 2>&1; then
-        yum clean all -q
+        run_cmd yum clean all -q
         echo -e "${gl_lv}YUM 缓存清理完成${gl_bai}"
 
     elif command -v pacman >/dev/null 2>&1; then
-        pacman -Scc --noconfirm
+        run_cmd pacman -Scc --noconfirm
         echo -e "${gl_lv}Pacman 缓存清理完成${gl_bai}"
 
     elif command -v apk >/dev/null 2>&1; then
-        apk cache clean
+        run_cmd apk cache clean
         echo -e "${gl_lv}APK 缓存清理完成${gl_bai}"
     fi
 
     # 清理日志（保留系统日志目录）
     echo ""
     echo "清理旧日志..."
-    find /var/log -name "*.gz" -delete 2>/dev/null
-    find /var/log -name "*.[0-9]" -delete 2>/dev/null
-    find /tmp -type f -atime +7 -delete 2>/dev/null
+    run_cmd find /var/log -name "*.gz" -delete 2>/dev/null
+    run_cmd find /var/log -name "*.[0-9]" -delete 2>/dev/null
+    run_cmd find /tmp -type f -atime +7 -delete 2>/dev/null
     echo -e "${gl_lv}日志清理完成${gl_bai}"
 
     back_menu
@@ -196,7 +200,7 @@ do_list_ports() {
     if command -v firewall-cmd >/dev/null 2>&1; then
         echo -e "${gl_huang}防火墙工具: firewalld${gl_bai}"
         echo ""
-        local ports=$(firewall-cmd --list-ports 2>/dev/null)
+        local ports=$(run_cmd firewall-cmd --list-ports 2>/dev/null)
         if [ -z "$ports" ]; then
             echo -e "  ${gl_huang}暂无已开放的端口${gl_bai}"
         else
@@ -209,15 +213,15 @@ do_list_ports() {
             done
         fi
         echo ""
-        echo -e "${gl_huang}防火墙状态: $(firewall-cmd --state 2>/dev/null || echo '未知')${gl_bai}"
+        echo -e "${gl_huang}防火墙状态: $(run_cmd firewall-cmd --state 2>/dev/null || echo '未知')${gl_bai}"
         
     elif command -v ufw >/dev/null 2>&1; then
         echo -e "${gl_huang}防火墙工具: ufw${gl_bai}"
         echo ""
-        local status=$(ufw status 2>/dev/null)
+        local status=$(run_cmd ufw status 2>/dev/null)
         echo "$status"
         echo ""
-        local ports=$(ufw status | grep -E "^[0-9]+" | awk '{print $1}')
+        local ports=$(run_cmd ufw status | grep -E "^[0-9]+" | awk '{print $1}')
         if [ -z "$ports" ]; then
             echo -e "  ${gl_huang}暂无已开放的端口${gl_bai}"
         else
@@ -230,7 +234,7 @@ do_list_ports() {
     elif command -v iptables >/dev/null 2>&1; then
         echo -e "${gl_huang}防火墙工具: iptables${gl_bai}"
         echo ""
-        local ports=$(iptables -L INPUT -n 2>/dev/null | grep ACCEPT | grep dpt | awk '{for(i=1;i<=NF;i++) if($i ~ /dpt:/) print $i}' | sed 's/dpt://' | sort -u)
+        local ports=$(run_cmd iptables -L INPUT -n 2>/dev/null | grep ACCEPT | grep dpt | awk '{for(i=1;i<=NF;i++) if($i ~ /dpt:/) print $i}' | sed 's/dpt://' | sort -u)
         if [ -z "$ports" ]; then
             echo -e "  ${gl_huang}暂无已开放的端口${gl_bai}"
         else
