@@ -13,26 +13,12 @@ gl_kjlan='\033[96m'
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 chmod +x "$SCRIPT_PATH" 2>/dev/null
 
-# 检查 root 权限（非 root 时自动下载并用 sudo 执行）
-check_root() {
-    if [ "$EUID" -ne 0 ]; then
-        echo -e "${gl_huang}该功能需要 root 权限，正在自动提权...${gl_bai}"
-        if sudo -n true 2>/dev/null; then
-            export USE_SUDO=1
-        else
-            sudo true && export USE_SUDO=1 || { echo -e "${gl_hong}权限获取失败，请手动使用 sudo 运行脚本${gl_bai}"; return 1; }
-        fi
-    fi
-}
-
-# 通用执行（自动加 sudo）
-run() {
-    if [ "${USE_SUDO:-0}" = "1" ]; then
-        sudo "$@"
-    else
-        "$@"
-    fi
-}
+# 检测并切换到 root 用户
+if [ "$EUID" -ne 0 ]; then
+    echo -e "${gl_huang}检测到非 root 用户，正在切换到 root...${gl_bai}"
+    echo -e "${gl_huang}请输入当前用户密码以获取 root 权限${gl_bai}"
+    exec sudo -i bash -c 'curl -sL https://raw.githubusercontent.com/lqz8802/VPS-Maintenance-Script/main/cc.sh | bash'
+fi
 
 # 返回菜单提示
 back_menu() {
@@ -75,37 +61,36 @@ confirm() {
 # ------------------------------
 do_update() {
     clear
-    check_root || return
     echo -e "${gl_lv}>> 系统更新${gl_bai}"
     echo "------------------------"
 
     if command -v apt-get >/dev/null 2>&1; then
         echo "检测到 APT 系统（Debian/Ubuntu）"
         echo "更新软件包列表..."
-        run apt-get update -qq
+        apt-get update -qq
         echo "升级所有可更新软件包..."
-        run apt-get upgrade -y -qq 2>&1 | tail -5
+        apt-get upgrade -y -qq 2>&1 | tail -5
         echo -e "${gl_lv}系统更新完成${gl_bai}"
 
     elif command -v dnf >/dev/null 2>&1; then
         echo "检测到 DNF 系统（CentOS/RHEL/Fedora）"
-        run dnf check-update -q
-        run dnf upgrade -y -q
+        dnf check-update -q
+        dnf upgrade -y -q
         echo -e "${gl_lv}系统更新完成${gl_bai}"
 
     elif command -v yum >/dev/null 2>&1; then
         echo "检测到 YUM 系统（CentOS/RHEL）"
-        run yum update -y -q
+        yum update -y -q
         echo -e "${gl_lv}系统更新完成${gl_bai}"
 
     elif command -v pacman >/dev/null 2>&1; then
         echo "检测到 Pacman 系统（Arch Linux）"
-        run pacman -Syu --noconfirm
+        pacman -Syu --noconfirm
         echo -e "${gl_lv}系统更新完成${gl_bai}"
 
     elif command -v apk >/dev/null 2>&1; then
         echo "检测到 APK 系统（Alpine）"
-        run apk update && run apk upgrade -U -a
+        apk update && apk upgrade -U -a
         echo -e "${gl_lv}系统更新完成${gl_bai}"
 
     else
@@ -119,42 +104,41 @@ do_update() {
 # ------------------------------
 do_cleanup() {
     clear
-    check_root || return
     echo -e "${gl_lv}>> 系统清理${gl_bai}"
     echo "------------------------"
 
     if command -v apt-get >/dev/null 2>&1; then
         echo "清理 apt 缓存..."
-        run apt-get clean -qq
-        run apt-get autoclean -qq
+        apt-get clean -qq
+        apt-get autoclean -qq
         echo "删除不再需要的依赖..."
-        run apt-get autoremove -y -qq
+        apt-get autoremove -y -qq
         echo -e "${gl_lv}APT 缓存清理完成${gl_bai}"
 
     elif command -v dnf >/dev/null 2>&1; then
-        run dnf clean all -q
-        run dnf autoremove -y -q
+        dnf clean all -q
+        dnf autoremove -y -q
         echo -e "${gl_lv}DNF 缓存清理完成${gl_bai}"
 
     elif command -v yum >/dev/null 2>&1; then
-        run yum clean all -q
+        yum clean all -q
         echo -e "${gl_lv}YUM 缓存清理完成${gl_bai}"
 
     elif command -v pacman >/dev/null 2>&1; then
-        run pacman -Scc --noconfirm
+        pacman -Scc --noconfirm
         echo -e "${gl_lv}Pacman 缓存清理完成${gl_bai}"
 
     elif command -v apk >/dev/null 2>&1; then
-        run apk cache clean
+        apk cache clean
         echo -e "${gl_lv}APK 缓存清理完成${gl_bai}"
     fi
 
     # 清理日志（保留系统日志目录）
     echo ""
     echo "清理旧日志..."
-    run find /var/log -name "*.gz" -delete 2>/dev/null
-    run find /var/log -name "*.[0-9]" -delete 2>/dev/null
-    run find /tmp -type f -atime +7 -delete 2>/dev/null
+    find /var/log -name "*.gz" -delete 2>/dev/null
+    find /var/log -name "*.[0-9]" -delete 2>/dev/null
+    find /tmp -type f -atime +7 -delete 2>/dev/null
     echo -e "${gl_lv}日志清理完成${gl_bai}"
 
     back_menu
@@ -211,7 +195,7 @@ do_list_ports() {
     if command -v firewall-cmd >/dev/null 2>&1; then
         echo -e "${gl_huang}防火墙工具: firewalld${gl_bai}"
         echo ""
-        local ports=$(run firewall-cmd --list-ports 2>/dev/null)
+        local ports=$(firewall-cmd --list-ports 2>/dev/null)
         if [ -z "$ports" ]; then
             echo -e "  ${gl_huang}暂无已开放的端口${gl_bai}"
         else
@@ -224,15 +208,15 @@ do_list_ports() {
             done
         fi
         echo ""
-        echo -e "${gl_huang}防火墙状态: $(run firewall-cmd --state 2>/dev/null || echo '未知')${gl_bai}"
+        echo -e "${gl_huang}防火墙状态: $(firewall-cmd --state 2>/dev/null || echo '未知')${gl_bai}"
         
     elif command -v ufw >/dev/null 2>&1; then
         echo -e "${gl_huang}防火墙工具: ufw${gl_bai}"
         echo ""
-        local status=$(run ufw status 2>/dev/null)
+        local status=$(ufw status 2>/dev/null)
         echo "$status"
         echo ""
-        local ports=$(run ufw status | grep -E "^[0-9]+" | awk '{print $1}')
+        local ports=$(ufw status | grep -E "^[0-9]+" | awk '{print $1}')
         if [ -z "$ports" ]; then
             echo -e "  ${gl_huang}暂无已开放的端口${gl_bai}"
         else
@@ -245,7 +229,7 @@ do_list_ports() {
     elif command -v iptables >/dev/null 2>&1; then
         echo -e "${gl_huang}防火墙工具: iptables${gl_bai}"
         echo ""
-        local ports=$(run iptables -L INPUT -n 2>/dev/null | grep ACCEPT | grep dpt | awk '{for(i=1;i<=NF;i++) if($i ~ /dpt:/) print $i}' | sed 's/dpt://' | sort -u)
+        local ports=$(iptables -L INPUT -n 2>/dev/null | grep ACCEPT | grep dpt | awk '{for(i=1;i<=NF;i++) if($i ~ /dpt:/) print $i}' | sed 's/dpt://' | sort -u)
         if [ -z "$ports" ]; then
             echo -e "  ${gl_huang}暂无已开放的端口${gl_bai}"
         else
@@ -268,13 +252,12 @@ do_list_ports() {
 # ------------------------------
 do_open_port() {
     clear
-    check_root || return
     echo -e "${gl_lv}>> 开放指定端口${gl_bai}"
     echo "------------------------"
     echo "当前已开放的端口："
     echo ""
     if command -v firewall-cmd >/dev/null 2>&1; then
-        local ports=$(run firewall-cmd --list-ports 2>/dev/null)
+        local ports=$(firewall-cmd --list-ports 2>/dev/null)
         if [ -z "$ports" ]; then
             echo "  暂无"
         else
@@ -283,11 +266,11 @@ do_open_port() {
             done
         fi
     elif command -v ufw >/dev/null 2>&1; then
-        run ufw status numbered 2>/dev/null | grep -E "\[[0-9]+\]" | while read line; do
+        ufw status numbered 2>/dev/null | grep -E "\[[0-9]+\]" | while read line; do
             echo "  $line"
         done
     elif command -v iptables >/dev/null 2>&1; then
-        run iptables -L INPUT -n 2>/dev/null | grep ACCEPT | grep dpt | awk '{for(i=1;i<=NF;i++) if($i ~ /dpt:/) print "  "$i}' | sed 's/dpt:/端口 /' | sort -u | head -20
+        iptables -L INPUT -n 2>/dev/null | grep ACCEPT | grep dpt | awk '{for(i=1;i<=NF;i++) if($i ~ /dpt:/) print "  "$i}' | sed 's/dpt:/端口 /' | sort -u | head -20
     else
         echo "  暂无可识别的防火墙工具"
     fi
@@ -315,20 +298,20 @@ do_open_port() {
         fi
 
         if command -v firewall-cmd >/dev/null 2>&1; then
-            run firewall-cmd --permanent --add-port=$port/tcp >/dev/null 2>&1
-            run firewall-cmd --permanent --add-port=$port/udp >/dev/null 2>&1
-            run firewall-cmd --reload >/dev/null 2>&1
+            firewall-cmd --permanent --add-port=$port/tcp >/dev/null 2>&1
+            firewall-cmd --permanent --add-port=$port/udp >/dev/null 2>&1
+            firewall-cmd --reload >/dev/null 2>&1
             echo -e "${gl_lv}端口 $port 已开放（firewalld）${gl_bai}"
         elif command -v ufw >/dev/null 2>&1; then
-            run ufw allow $port/tcp >/dev/null 2>&1
+            ufw allow $port/tcp >/dev/null 2>&1
             echo -e "${gl_lv}端口 $port 已开放（ufw）${gl_bai}"
         elif command -v iptables >/dev/null 2>&1; then
-            run iptables -I INPUT -p tcp --dport $port -j ACCEPT 2>/dev/null
-            run iptables -I INPUT -p udp --dport $port -j ACCEPT 2>/dev/null
+            iptables -I INPUT -p tcp --dport $port -j ACCEPT 2>/dev/null
+            iptables -I INPUT -p udp --dport $port -j ACCEPT 2>/dev/null
             echo -e "${gl_lv}端口 $port 已开放（iptables）${gl_bai}"
         else
             echo -e "${gl_hong}未检测到防火墙工具，尝试 iptables${gl_bai}"
-            run iptables -I INPUT -p tcp --dport $port -j ACCEPT 2>/dev/null || \
+            iptables -I INPUT -p tcp --dport $port -j ACCEPT 2>/dev/null || \
                 echo -e "${gl_hong}开放失败，请手动操作${gl_bai}"
         fi
     done
@@ -340,13 +323,12 @@ do_open_port() {
 # ------------------------------
 do_close_port() {
     clear
-    check_root || return
     echo -e "${gl_hong}>> 关闭指定端口${gl_bai}"
     echo "------------------------"
     echo "当前已开放的端口："
     echo ""
     if command -v firewall-cmd >/dev/null 2>&1; then
-        local ports=$(run firewall-cmd --list-ports 2>/dev/null)
+        local ports=$(firewall-cmd --list-ports 2>/dev/null)
         if [ -z "$ports" ]; then
             echo "  暂无"
         else
@@ -355,11 +337,11 @@ do_close_port() {
             done
         fi
     elif command -v ufw >/dev/null 2>&1; then
-        run ufw status numbered 2>/dev/null | grep -E "\[[0-9]+\]" | while read line; do
+        ufw status numbered 2>/dev/null | grep -E "\[[0-9]+\]" | while read line; do
             echo "  $line"
         done
     elif command -v iptables >/dev/null 2>&1; then
-        run iptables -L INPUT -n 2>/dev/null | grep ACCEPT | grep dpt | awk '{for(i=1;i<=NF;i++) if($i ~ /dpt:/) print "  "$i}' | sed 's/dpt:/端口 /' | sort -u | head -20
+        iptables -L INPUT -n 2>/dev/null | grep ACCEPT | grep dpt | awk '{for(i=1;i<=NF;i++) if($i ~ /dpt:/) print "  "$i}' | sed 's/dpt:/端口 /' | sort -u | head -20
     else
         echo "  暂无可识别的防火墙工具"
     fi
@@ -392,16 +374,16 @@ do_close_port() {
         fi
 
         if command -v firewall-cmd >/dev/null 2>&1; then
-            run firewall-cmd --permanent --remove-port=$port/tcp >/dev/null 2>&1
-            run firewall-cmd --permanent --remove-port=$port/udp >/dev/null 2>&1
-            run firewall-cmd --reload >/dev/null 2>&1
+            firewall-cmd --permanent --remove-port=$port/tcp >/dev/null 2>&1
+            firewall-cmd --permanent --remove-port=$port/udp >/dev/null 2>&1
+            firewall-cmd --reload >/dev/null 2>&1
             echo -e "${gl_hong}端口 $port 已关闭（firewalld）${gl_bai}"
         elif command -v ufw >/dev/null 2>&1; then
-            run ufw delete allow $port/tcp >/dev/null 2>&1
+            ufw delete allow $port/tcp >/dev/null 2>&1
             echo -e "${gl_hong}端口 $port 已关闭（ufw）${gl_bai}"
         elif command -v iptables >/dev/null 2>&1; then
-            run iptables -D INPUT -p tcp --dport $port -j ACCEPT 2>/dev/null
-            run iptables -D INPUT -p udp --dport $port -j ACCEPT 2>/dev/null
+            iptables -D INPUT -p tcp --dport $port -j ACCEPT 2>/dev/null
+            iptables -D INPUT -p udp --dport $port -j ACCEPT 2>/dev/null
             echo -e "${gl_hong}端口 $port 已关闭（iptables）${gl_bai}"
         else
             echo -e "${gl_hong}未检测到防火墙工具${gl_bai}"
@@ -458,7 +440,6 @@ do_account_menu() {
 # ------------------------------
 do_change_username() {
     clear
-    check_root || return
     echo -e "${gl_lv}>> 修改普通用户名${gl_bai}"
     echo "------------------------"
     echo "当前系统上的普通用户："
@@ -511,7 +492,7 @@ do_change_username() {
     fi
     
     # 修改用户名
-    run usermod -l "$new_username" "$old_username" 2>/dev/null && \
+    usermod -l "$new_username" "$old_username" 2>/dev/null && \
         echo -e "${gl_lv}用户名已从 $old_username 修改为 $new_username${gl_bai}" || \
         echo -e "${gl_hong}修改失败，请手动执行: usermod -l $new_username $old_username${gl_bai}"
     
@@ -523,7 +504,6 @@ do_change_username() {
 # ------------------------------
 do_change_password() {
     clear
-    check_root || return
     echo -e "${gl_lv}>> 修改普通用户密码${gl_bai}"
     echo "------------------------"
     echo "当前系统上的普通用户："
@@ -588,9 +568,9 @@ do_change_password() {
     fi
 
     # 修改密码
-    echo "$new_pass" | run passwd --stdin "$username" 2>/dev/null && \
+    echo "$new_pass" | passwd --stdin "$username" 2>/dev/null && \
         echo -e "${gl_lv}用户 $username 的密码已成功修改${gl_bai}" || \
-        echo "$username:$new_pass" | run chpasswd 2>/dev/null && \
+        echo "$username:$new_pass" | chpasswd 2>/dev/null && \
         echo -e "${gl_lv}用户 $username 的密码已成功修改${gl_bai}" || \
         echo -e "${gl_hong}密码修改失败，请手动执行: passwd $username${gl_bai}"
 
@@ -639,7 +619,6 @@ do_user_manage() {
 # ------------------------------
 do_add_user() {
     clear
-    check_root || return
     echo -e "${gl_lv}>> 添加用户${gl_bai}"
     echo "------------------------"
     echo ""
@@ -691,9 +670,9 @@ do_add_user() {
     
     # 创建用户
     if command -v useradd &>/dev/null; then
-        run useradd -m -s /bin/bash "$new_user" 2>/dev/null
+        useradd -m -s /bin/bash "$new_user" 2>/dev/null
     elif command -v adduser &>/dev/null; then
-        run adduser --disabled-password --gecos "" "$new_user" 2>/dev/null
+        adduser --disabled-password --gecos "" "$new_user" 2>/dev/null
     else
         echo -e "${gl_hong}未找到可用的用户创建命令${gl_bai}"
         back_menu
@@ -702,8 +681,8 @@ do_add_user() {
     
     # 设置密码
     if id "$new_user" &>/dev/null; then
-        echo "$new_pass" | run passwd --stdin "$new_user" 2>/dev/null || \
-            echo "$new_user:$new_pass" | run chpasswd 2>/dev/null
+        echo "$new_pass" | passwd --stdin "$new_user" 2>/dev/null || \
+            echo "$new_user:$new_pass" | chpasswd 2>/dev/null
         echo -e "${gl_lv}用户 $new_user 已创建并设置密码${gl_bai}"
     else
         echo -e "${gl_hong}用户创建失败${gl_bai}"
@@ -717,7 +696,6 @@ do_add_user() {
 # ------------------------------
 do_del_user() {
     clear
-    check_root || return
     echo -e "${gl_hong}>> 删除用户${gl_bai}"
     echo "------------------------"
     echo "当前系统上的普通用户："
@@ -758,7 +736,7 @@ do_del_user() {
         back_menu
         return $?
     elif [ $ret -eq 0 ]; then
-        run userdel -r "$del_user" 2>/dev/null && \
+        userdel -r "$del_user" 2>/dev/null && \
             echo -e "${gl_lv}用户 $del_user 已删除${gl_bai}" || \
             echo -e "${gl_hong}删除失败，请手动执行: userdel -r $del_user${gl_bai}"
     else
@@ -773,7 +751,6 @@ do_del_user() {
 # ------------------------------
 do_root_account() {
     clear
-    check_root || return
     echo -e "${gl_kjlan}>> Root 账户管理${gl_bai}"
     echo "------------------------"
 
@@ -812,9 +789,9 @@ do_root_account() {
                 back_menu
                 return
             fi
-            echo "$new_pass" | run passwd --stdin root 2>/dev/null && \
+            echo "$new_pass" | passwd --stdin root 2>/dev/null && \
                 echo -e "${gl_lv}Root 密码已成功修改${gl_bai}" || \
-                echo "root:$new_pass" | run chpasswd 2>/dev/null && \
+                echo "root:$new_pass" | chpasswd 2>/dev/null && \
                 echo -e "${gl_lv}Root 密码已成功修改${gl_bai}" || \
                 echo -e "${gl_hong}密码修改失败，请手动执行: passwd root${gl_bai}"
         else
@@ -832,9 +809,9 @@ do_root_account() {
         elif [ $ret -eq 0 ]; then
             # 根据系统选择创建方式
             if command -v useradd &>/dev/null; then
-                run useradd -m -s /bin/bash root 2>/dev/null
+                useradd -m -s /bin/bash root 2>/dev/null
             elif command -v adduser &>/dev/null; then
-                run adduser --disabled-password --gecos "" root 2>/dev/null
+                adduser --disabled-password --gecos "" root 2>/dev/null
             else
                 echo -e "${gl_hong}未找到可用的用户创建命令${gl_bai}"
                 back_menu
@@ -864,9 +841,9 @@ do_root_account() {
                     if [ "$new_pass" != "$confirm_pass" ]; then
                         echo -e "${gl_hong}两次输入的密码不一致${gl_bai}"
                     else
-                        echo "$new_pass" | run passwd --stdin root 2>/dev/null && \
+                        echo "$new_pass" | passwd --stdin root 2>/dev/null && \
                             echo -e "${gl_lv}Root 密码设置成功${gl_bai}" || \
-                            echo "root:$new_pass" | run chpasswd 2>/dev/null && \
+                            echo "root:$new_pass" | chpasswd 2>/dev/null && \
                             echo -e "${gl_lv}Root 密码设置成功${gl_bai}" || \
                             echo -e "${gl_hong}密码设置失败，请手动执行: passwd root${gl_bai}"
                     fi
@@ -887,7 +864,6 @@ do_root_account() {
 # ------------------------------
 do_change_hostname() {
     clear
-    check_root || return
     echo -e "${gl_lv}>> 修改主机名${gl_bai}"
     echo "============================================================"
     echo ""
@@ -936,17 +912,17 @@ do_change_hostname() {
     elif [ $ret -eq 0 ]; then
         # 使用 hostnamectl 修改（推荐）
         if command -v hostnamectl &>/dev/null; then
-            run hostnamectl set-hostname "$new_hostname" 2>/dev/null && \
+            hostnamectl set-hostname "$new_hostname" 2>/dev/null && \
                 echo -e "${gl_lv}主机名已成功修改为: $new_hostname${gl_bai}" || \
                 echo -e "${gl_hong}修改失败，请手动执行: hostnamectl set-hostname $new_hostname${gl_bai}"
         # 兼容没有 systemd 的系统
         elif [ -f /etc/hostname ]; then
-            echo "$new_hostname" | run tee /etc/hostname >/dev/null && \
-                run hostname "$new_hostname" 2>/dev/null && \
+            echo "$new_hostname" | tee /etc/hostname >/dev/null && \
+                hostname "$new_hostname" 2>/dev/null && \
                 echo -e "${gl_lv}主机名已成功修改为: $new_hostname${gl_bai}" || \
                 echo -e "${gl_hong}修改失败，请手动编辑 /etc/hostname${gl_bai}"
         else
-            run hostname "$new_hostname" 2>/dev/null && \
+            hostname "$new_hostname" 2>/dev/null && \
                 echo -e "${gl_lv}主机名已成功修改为: $new_hostname（重启后失效）${gl_bai}" || \
                 echo -e "${gl_hong}修改失败${gl_bai}"
         fi
@@ -978,21 +954,21 @@ do_list_software() {
         echo -e "${gl_lan}包管理器:${gl_bai} dpkg (Debian/Ubuntu)"
     elif command -v dnf &>/dev/null; then
         pkg_manager="dnf"
-        pkg_count=$(run dnf list installed --quiet 2>/dev/null | wc -l)
+        pkg_count=$(dnf list installed --quiet 2>/dev/null | wc -l)
         pkg_count=$((pkg_count - 1))
         echo -e "${gl_lan}包管理器:${gl_bai} dnf (Fedora/RHEL)"
     elif command -v yum &>/dev/null; then
         pkg_manager="yum"
-        pkg_count=$(run yum list installed --quiet 2>/dev/null | wc -l)
+        pkg_count=$(yum list installed --quiet 2>/dev/null | wc -l)
         pkg_count=$((pkg_count - 1))
         echo -e "${gl_lan}包管理器:${gl_bai} yum (CentOS/RHEL)"
     elif command -v pacman &>/dev/null; then
         pkg_manager="pacman"
-        pkg_count=$(run pacman -Q 2>/dev/null | wc -l)
+        pkg_count=$(pacman -Q 2>/dev/null | wc -l)
         echo -e "${gl_lan}包管理器:${gl_bai} pacman (Arch)"
     elif command -v apk &>/dev/null; then
         pkg_manager="apk"
-        pkg_count=$(run apk info 2>/dev/null | wc -l)
+        pkg_count=$(apk info 2>/dev/null | wc -l)
         echo -e "${gl_lan}包管理器:${gl_bai} apk (Alpine)"
     else
         echo -e "${gl_hong}未检测到支持的包管理器${gl_bai}"
@@ -1011,16 +987,16 @@ do_list_software() {
             dpkg -l 2>/dev/null | grep '^ii' | awk '{printf "  %-42s %s\n", $2, $3}' | head -50
             ;;
         dnf)
-            run dnf list installed --quiet 2>/dev/null | awk 'NR>0{printf "  %-42s %s\n", $1, $2}' | head -50
+            dnf list installed --quiet 2>/dev/null | awk 'NR>0{printf "  %-42s %s\n", $1, $2}' | head -50
             ;;
         yum)
-            run yum list installed --quiet 2>/dev/null | awk 'NR>0{printf "  %-42s %s\n", $1, $2}' | head -50
+            yum list installed --quiet 2>/dev/null | awk 'NR>0{printf "  %-42s %s\n", $1, $2}' | head -50
             ;;
         pacman)
-            run pacman -Q 2>/dev/null | awk '{printf "  %-42s %s\n", $1, $2}' | head -50
+            pacman -Q 2>/dev/null | awk '{printf "  %-42s %s\n", $1, $2}' | head -50
             ;;
         apk)
-            run apk info -v 2>/dev/null | awk '{printf "  %s\n", $0}' | head -50
+            apk info -v 2>/dev/null | awk '{printf "  %s\n", $0}' | head -50
             ;;
     esac
     
