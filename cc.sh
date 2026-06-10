@@ -17,7 +17,10 @@ chmod +x "$SCRIPT_PATH" 2>/dev/null
 if [ "$EUID" -ne 0 ]; then
     echo -e "${gl_huang}检测到非 root 用户，正在切换到 root...${gl_bai}"
     echo -e "${gl_huang}请输入当前用户密码以获取 root 权限${gl_bai}"
-    exec sudo -i bash -c 'curl -sL https://raw.githubusercontent.com/lqz8802/VPS-Maintenance-Script/main/cc.sh | bash'
+    TMPFILE=$(mktemp /tmp/cc.XXXXXX)
+    curl -sL https://raw.githubusercontent.com/lqz8802/VPS-Maintenance-Script/main/cc.sh -o "$TMPFILE"
+    chmod +x "$TMPFILE"
+    exec sudo -i bash "$TMPFILE"
 fi
 
 # 返回菜单提示
