@@ -20,7 +20,7 @@ if [ "$EUID" -ne 0 ]; then
     TMPFILE=$(mktemp /tmp/cc.XXXXXX)
     curl -sL https://raw.githubusercontent.com/lqz8802/VPS-Maintenance-Script/main/cc.sh -o "$TMPFILE"
     chmod +x "$TMPFILE"
-    exec sudo -i bash "$TMPFILE"
+    exec sudo bash -i "$TMPFILE"
 fi
 
 # 返回菜单提示
