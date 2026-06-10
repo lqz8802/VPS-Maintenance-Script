@@ -1090,6 +1090,8 @@ while true; do
     main_menu
     echo ""
     echo -e "${gl_huang}输入 q 可随时返回上级菜单${gl_bai}"
+    # 清空 stdin 缓冲区，防止提权时残留字符导致无效输入
+    while read -t 0.01 -n 1 2>/dev/null; do :; done
     read -p "请输入你的选择: " choice
 
     case "$choice" in
