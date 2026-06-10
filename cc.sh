@@ -24,7 +24,7 @@ fi
 back_menu() {
     echo ""
     echo -e "${gl_huang}输入 q 返回上级，回车继续...${gl_bai}"
-    read -e -p "" any
+    read -p "" any
     if [ "$any" = "q" ]; then
         return 1
     fi
@@ -36,7 +36,7 @@ read_input() {
     local var_name="$1"
     local prompt="$2"
     local input
-    read -e -p "$prompt" input
+    read -p "$prompt" input
     if [ "$input" = "q" ]; then
         return 1
     fi
@@ -48,7 +48,7 @@ read_input() {
 confirm() {
     local prompt="$1"
     local choice
-    read -e -p "$(echo -e "${gl_huang}${prompt} (Y/N): ${gl_bai}")" choice
+    read -p "$(echo -e "${gl_huang}${prompt} (Y/N): ${gl_bai}")" choice
     case "$choice" in
         q) return 2 ;;  # q 返回
         [Yy]) return 0 ;;
@@ -160,7 +160,7 @@ do_port_menu() {
         echo "------------------------"
         echo ""
         echo -e "${gl_huang}输入 q 可随时返回上级菜单${gl_bai}"
-        read -e -p "请输入你的选择: " port_choice
+        read -p "请输入你的选择: " port_choice
         
         if [ "$port_choice" = "q" ]; then
             echo -e "${gl_huang}已返回${gl_bai}"
@@ -275,7 +275,7 @@ do_open_port() {
         echo "  暂无可识别的防火墙工具"
     fi
     echo ""
-    read -e -p "请输入要开放的端口号（多个用空格分隔）: " ports
+    read -p "请输入要开放的端口号（多个用空格分隔）: " ports
     if [ "$ports" = "q" ]; then
         echo -e "${gl_huang}已返回${gl_bai}"
         back_menu
@@ -346,7 +346,7 @@ do_close_port() {
         echo "  暂无可识别的防火墙工具"
     fi
     echo ""
-    read -e -p "请输入要关闭的端口号（多个用空格分隔）: " ports
+    read -p "请输入要关闭的端口号（多个用空格分隔）: " ports
     if [ "$ports" = "q" ]; then
         echo -e "${gl_huang}已返回${gl_bai}"
         back_menu
@@ -410,7 +410,7 @@ do_account_menu() {
         echo "------------------------"
         echo ""
         echo -e "${gl_huang}输入 q 可随时返回上级菜单${gl_bai}"
-        read -e -p "请输入你的选择: " acc_choice
+        read -p "请输入你的选择: " acc_choice
         
         if [ "$acc_choice" = "q" ]; then
             echo -e "${gl_huang}已返回${gl_bai}"
@@ -446,7 +446,7 @@ do_change_username() {
     echo ""
     awk -F: '$3 >= 1000 && $1 != "nobody" && $1 != "nogroup" {print "  "$1}' /etc/passwd
     echo ""
-    read -e -p "请输入要修改的用户名: " old_username
+    read -p "请输入要修改的用户名: " old_username
     if [ "$old_username" = "q" ]; then
         echo -e "${gl_huang}已返回${gl_bai}"
         back_menu
@@ -472,7 +472,7 @@ do_change_username() {
         return
     fi
     
-    read -e -p "请输入新的用户名: " new_username
+    read -p "请输入新的用户名: " new_username
     if [ "$new_username" = "q" ]; then
         echo -e "${gl_huang}已返回${gl_bai}"
         back_menu
@@ -511,7 +511,7 @@ do_change_password() {
     # 列出 UID >= 1000 的用户（排除 nobody 等）
     awk -F: '$3 >= 1000 && $1 != "nobody" && $1 != "nogroup" {print "  "$1}' /etc/passwd
     echo ""
-    read -e -p "请输入要修改密码的用户名: " username
+    read -p "请输入要修改密码的用户名: " username
     if [ "$username" = "q" ]; then
         echo -e "${gl_huang}已返回${gl_bai}"
         back_menu
@@ -592,7 +592,7 @@ do_user_manage() {
         echo "------------------------"
         echo ""
         echo -e "${gl_huang}输入 q 可随时返回上级菜单${gl_bai}"
-        read -e -p "请输入你的选择: " um_choice
+        read -p "请输入你的选择: " um_choice
         
         if [ "$um_choice" = "q" ]; then
             echo -e "${gl_huang}已返回${gl_bai}"
@@ -622,7 +622,7 @@ do_add_user() {
     echo -e "${gl_lv}>> 添加用户${gl_bai}"
     echo "------------------------"
     echo ""
-    read -e -p "请输入新用户名: " new_user
+    read -p "请输入新用户名: " new_user
     if [ "$new_user" = "q" ]; then
         echo -e "${gl_huang}已返回${gl_bai}"
         back_menu
@@ -702,7 +702,7 @@ do_del_user() {
     echo ""
     awk -F: '$3 >= 1000 && $1 != "nobody" && $1 != "nogroup" {print "  "$1}' /etc/passwd
     echo ""
-    read -e -p "请输入要删除的用户名: " del_user
+    read -p "请输入要删除的用户名: " del_user
     if [ "$del_user" = "q" ]; then
         echo -e "${gl_huang}已返回${gl_bai}"
         back_menu
@@ -880,7 +880,7 @@ do_change_hostname() {
     echo "------------------------------------------------------------"
     echo ""
     
-    read -e -p "请输入新的主机名: " new_hostname
+    read -p "请输入新的主机名: " new_hostname
     if [ "$new_hostname" = "q" ]; then
         echo -e "${gl_huang}已返回${gl_bai}"
         back_menu
@@ -1091,7 +1091,7 @@ while true; do
     main_menu
     echo ""
     echo -e "${gl_huang}输入 q 可随时返回上级菜单${gl_bai}"
-    read -e -p "请输入你的选择: " choice
+    read -p "请输入你的选择: " choice
 
     case "$choice" in
         1) do_update ;;
