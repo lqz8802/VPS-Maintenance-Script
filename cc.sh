@@ -13,11 +13,11 @@ gl_kjlan='\033[96m'
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 chmod +x "$SCRIPT_PATH" 2>/dev/null
 
-# 检查 root 权限
+# 检查 root 权限（非 root 时自动尝试 sudo 提权）
 check_root() {
     if [ "$EUID" -ne 0 ]; then
-        echo -e "${gl_hong}请使用 root 权限运行此脚本${gl_bai}"
-        exit 1
+        echo -e "${gl_huang}检测到非 root 用户，正在尝试获取权限...${gl_bai}"
+        exec sudo bash "$0" "$@"
     fi
 }
 
